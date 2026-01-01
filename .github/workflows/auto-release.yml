@@ -29,12 +29,12 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Calculate version and changelog
+      - name: Calculate version
         if: steps.check.outputs.skip == 'false'
         id: version
         run: |
-          # Get current version
-          CURRENT=$(grep 'const Version' cmd/root.go | sed 's/.*"\(.*\)"/\1/')
+          # Get current version from vel.go
+          CURRENT=$(grep 'var Version' vel.go | sed 's/.*"\(.*\)"/\1/')
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
 
           # Get last tag
@@ -52,37 +52,17 @@ jobs:
           MINOR=$(echo $CURRENT | cut -d. -f2)
           PATCH=$(echo $CURRENT | cut -d. -f3)
 
-          # Determine bump type and collect changelog entries
+          # Determine bump type
           HAS_BREAKING=false
           HAS_FEAT=false
-          ADDED=""
-          FIXED=""
-          CHANGED=""
 
           while IFS= read -r msg; do
             [ -z "$msg" ] && continue
-
-            # Check for breaking changes
             if echo "$msg" | grep -qiE "BREAKING|!:"; then
               HAS_BREAKING=true
             fi
-
-            # Categorize commits
-            if echo "$msg" | grep -qiE "^feat"; then
+            if echo "$msg" | grep -qiE "^feat|^add"; then
               HAS_FEAT=true
-              ENTRY=$(echo "$msg" | sed 's/^feat[:(].*[):] *//' | sed 's/^feat: *//')
-              ADDED="${ADDED}- ${ENTRY}\n"
-            elif echo "$msg" | grep -qiE "^fix"; then
-              ENTRY=$(echo "$msg" | sed 's/^fix[:(].*[):] *//' | sed 's/^fix: *//')
-              FIXED="${FIXED}- ${ENTRY}\n"
-            elif echo "$msg" | grep -qiE "^add"; then
-              ENTRY=$(echo "$msg" | sed 's/^add[:(].*[):] *//' | sed 's/^add: *//')
-              ADDED="${ADDED}- ${ENTRY}\n"
-            else
-              # Skip version bumps and merge commits
-              if ! echo "$msg" | grep -qiE "^bump|^merge|^Bump"; then
-                CHANGED="${CHANGED}- ${msg}\n"
-              fi
             fi
           done <<< "$COMMITS"
 
@@ -100,56 +80,13 @@ jobs:
 
           NEW="$MAJOR.$MINOR.$PATCH"
           echo "new=$NEW" >> $GITHUB_OUTPUT
-
-          # Build changelog section
-          DATE=$(date +%Y-%m-%d)
-          CHANGELOG="## [$NEW] - $DATE\n"
-
-          if [ -n "$ADDED" ]; then
-            CHANGELOG="${CHANGELOG}\n### Added\n${ADDED}"
-          fi
-          if [ -n "$FIXED" ]; then
-            CHANGELOG="${CHANGELOG}\n### Fixed\n${FIXED}"
-          fi
-          if [ -n "$CHANGED" ]; then
-            CHANGELOG="${CHANGELOG}\n### Changed\n${CHANGED}"
-          fi
-
-          # Save changelog to file for next step
-          echo -e "$CHANGELOG" > /tmp/changelog_entry.txt
           echo "Bumping version: $CURRENT -> $NEW"
 
-      - name: Set up Go
-        if: steps.check.outputs.skip == 'false'
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.25"
-
-      - name: Update files
+      - name: Update version
         if: steps.check.outputs.skip == 'false'
         run: |
           NEW_VERSION=${{ steps.version.outputs.new }}
-
-          # Update cmd/root.go
-          sed -i "s/const Version = \".*\"/const Version = \"$NEW_VERSION\"/" cmd/root.go
-
-          # Update CHANGELOG.md - insert new section after header
-          CHANGELOG_ENTRY=$(cat /tmp/changelog_entry.txt)
-          awk -v entry="$CHANGELOG_ENTRY" '
-            /^## \[/ && !inserted {
-              print entry
-              print ""
-              inserted=1
-            }
-            {print}
-          ' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
-
-          # Fetch latest velocity framework release and update go.mod
-          VELOCITY_VERSION=$(curl -s https://api.github.com/repos/velocitykode/velocity/releases/latest | jq -r '.tag_name // "v0.0.3"')
-          if [ "$VELOCITY_VERSION" != "null" ] && [ -n "$VELOCITY_VERSION" ]; then
-            go mod edit -require=github.com/velocitykode/velocity@${VELOCITY_VERSION}
-            go mod tidy
-          fi
+          sed -i "s/var Version = \".*\"/var Version = \"$NEW_VERSION\"/" vel.go
 
       - name: Commit and tag
         if: steps.check.outputs.skip == 'false'
@@ -159,8 +96,28 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add cmd/root.go CHANGELOG.md go.mod go.sum
+          git add vel.go
           git commit -m "Bump version to $NEW_VERSION"
           git tag "v$NEW_VERSION"
           git push origin main
           git push origin "v$NEW_VERSION"
+
+      - name: Update velocity-template
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          VERSION=v${{ steps.version.outputs.new }}
+          git clone https://x-access-token:${{ secrets.VELOCITY_TOKEN }}@github.com/velocitykode/velocity-template.git
+          cd velocity-template
+
+          # Update vel version in go.mod
+          sed -i "s|github.com/velocitykode/vel v[0-9.]*|github.com/velocitykode/vel ${VERSION}|" go.mod
+
+          if git diff --quiet go.mod; then
+            echo "No changes to go.mod"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add go.mod
+            git commit -m "chore: update vel to ${VERSION}"
+            git push
+          fi

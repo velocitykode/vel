@@ -1,4 +1,4 @@
-package cli
+package vel
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
-	"github.com/velocitykode/velocity-cli/internal/ui"
+	"github.com/velocitykode/vel/internal/ui"
 )
 
 var (

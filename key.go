@@ -1,4 +1,4 @@
-package cli
+package vel
 
 import (
 	"crypto/rand"
@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/velocitykode/velocity-cli/internal/ui"
+	"github.com/velocitykode/vel/internal/ui"
 )
 
 var keyGenerateCmd = &cobra.Command{

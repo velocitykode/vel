@@ -1,4 +1,4 @@
-package cli
+package vel
 
 import (
 	"encoding/base64"
