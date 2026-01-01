@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -37,6 +39,8 @@ func init() {
 	serveCmd.Flags().StringVar(&serveBuildTags, "tags", "", "Build tags to pass to go build")
 }
 
+var viteCmd *exec.Cmd
+
 func runServe(cmd *cobra.Command, args []string) error {
 	ui.Header("serve")
 	if serveWatch {
@@ -46,10 +50,55 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}
 	ui.Newline()
 
+	// Start Vite dev server if package.json exists
+	if _, err := os.Stat("package.json"); err == nil {
+		startVite()
+	}
+
+	// Handle graceful shutdown
+	setupGracefulShutdown()
+
 	if serveWatch {
 		return runWithWatcher()
 	}
 	return runServer()
+}
+
+func startVite() {
+	// Detect package manager
+	runner := "npm"
+	if _, err := exec.LookPath("bun"); err == nil {
+		if _, err := os.Stat("bun.lock"); err == nil {
+			runner = "bun"
+		}
+	}
+
+	ui.Step(fmt.Sprintf("Starting Vite (%s run dev)...", runner))
+	viteCmd = exec.Command(runner, "run", "dev")
+	viteCmd.Stdout = os.Stdout
+	viteCmd.Stderr = os.Stderr
+	viteCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	if err := viteCmd.Start(); err != nil {
+		ui.Warning(fmt.Sprintf("Failed to start Vite: %v", err))
+	}
+}
+
+func setupGracefulShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		ui.Newline()
+		ui.Step("Shutting down...")
+
+		if viteCmd != nil && viteCmd.Process != nil {
+			syscall.Kill(-viteCmd.Process.Pid, syscall.SIGTERM)
+		}
+
+		os.Exit(0)
+	}()
 }
 
 func runServer() error {
@@ -57,9 +106,9 @@ func runServer() error {
 	os.Setenv("APP_PORT", servePort)
 
 	// Ensure build directory exists
-	os.MkdirAll(".velocity/tmp", 0755)
+	os.MkdirAll(".vel/tmp", 0755)
 
-	buildArgs := []string{"build", "-o", ".velocity/tmp/server"}
+	buildArgs := []string{"build", "-o", ".vel/tmp/server"}
 	if serveBuildTags != "" {
 		buildArgs = append(buildArgs, "-tags", serveBuildTags)
 	}
@@ -74,7 +123,7 @@ func runServer() error {
 		return err
 	}
 
-	serverCmd := exec.Command(".velocity/tmp/server")
+	serverCmd := exec.Command(".vel/tmp/server")
 	serverCmd.Stdout = os.Stdout
 	serverCmd.Stderr = os.Stderr
 	serverCmd.Env = os.Environ()
@@ -87,7 +136,7 @@ func runServer() error {
 }
 
 func runWithWatcher() error {
-	os.MkdirAll(".velocity/tmp", 0755)
+	os.MkdirAll(".vel/tmp", 0755)
 
 	rebuild := make(chan bool, 1)
 	errChan := make(chan error, 1)
@@ -112,7 +161,7 @@ func runWithWatcher() error {
 		}
 
 		ui.Step("Building...")
-		buildArgs := []string{"build", "-o", ".velocity/tmp/server"}
+		buildArgs := []string{"build", "-o", ".vel/tmp/server"}
 		if serveBuildTags != "" {
 			buildArgs = append(buildArgs, "-tags", serveBuildTags)
 		}
@@ -126,7 +175,7 @@ func runWithWatcher() error {
 		}
 
 		ui.Success(fmt.Sprintf("Starting server on port %s...", servePort))
-		serverCmd = exec.Command(".velocity/tmp/server")
+		serverCmd = exec.Command(".vel/tmp/server")
 		serverCmd.Stdout = os.Stdout
 		serverCmd.Stderr = os.Stderr
 		serverCmd.Env = append(os.Environ(),
@@ -172,7 +221,7 @@ func watchFiles(rebuild chan bool) error {
 			return err
 		}
 
-		if strings.Contains(path, "vendor") || strings.Contains(path, ".velocity") {
+		if strings.Contains(path, "vendor") || strings.Contains(path, ".vel") {
 			return filepath.SkipDir
 		}
 

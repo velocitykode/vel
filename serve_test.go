@@ -150,11 +150,11 @@ func TestRunServer_CreatesTmpDir(t *testing.T) {
 	servePort = "4000"
 	serveEnv = "test"
 
-	// Will fail but should create .velocity/tmp
+	// Will fail but should create .vel/tmp
 	runServer()
 
-	if _, err := os.Stat(".velocity/tmp"); err != nil {
-		t.Error(".velocity/tmp directory should be created")
+	if _, err := os.Stat(".vel/tmp"); err != nil {
+		t.Error(".vel/tmp directory should be created")
 	}
 }
 
@@ -183,11 +183,11 @@ func TestRunWithWatcher_CreatesTmpDir(t *testing.T) {
 	servePort = "4000"
 	serveEnv = "test"
 
-	// Will fail but should create .velocity/tmp
+	// Will fail but should create .vel/tmp
 	runWithWatcher()
 
-	if _, err := os.Stat(".velocity/tmp"); err != nil {
-		t.Error(".velocity/tmp directory should be created")
+	if _, err := os.Stat(".vel/tmp"); err != nil {
+		t.Error(".vel/tmp directory should be created")
 	}
 }
 
@@ -199,12 +199,12 @@ func TestWatchFiles_SkipsVendorAndVelocity(t *testing.T) {
 
 	// Create directories that should be skipped
 	os.MkdirAll("vendor/pkg", 0755)
-	os.MkdirAll(".velocity/tmp", 0755)
+	os.MkdirAll(".vel/tmp", 0755)
 	os.MkdirAll("app", 0755)
 
 	os.WriteFile("main.go", []byte("package main"), 0644)
 	os.WriteFile("vendor/pkg/lib.go", []byte("package pkg"), 0644)
-	os.WriteFile(".velocity/tmp/server", []byte("binary"), 0755)
+	os.WriteFile(".vel/tmp/server", []byte("binary"), 0755)
 	os.WriteFile("app/handler.go", []byte("package app"), 0644)
 
 	rebuild := make(chan bool, 1)
@@ -215,7 +215,7 @@ func TestWatchFiles_SkipsVendorAndVelocity(t *testing.T) {
 	}()
 
 	// Give it time to setup
-	// The function should not error even with vendor/.velocity present
+	// The function should not error even with vendor/.vel present
 }
 
 func TestRunServer_BuildSucceeds_ServerFails(t *testing.T) {
