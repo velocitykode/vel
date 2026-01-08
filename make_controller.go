@@ -20,24 +20,25 @@ var (
 )
 
 var makeControllerCmd = &cobra.Command{
-	Use:     "make:controller [name]",
-	Short:   "Create a new controller",
-	Long:    `Create a new controller class in the app/http/controllers directory.`,
-	Example: "  velocity make:controller User\n  velocity make:controller Admin/Dashboard --resource",
+	Use:     "make:handler [name]",
+	Aliases: []string{"make:controller"},
+	Short:   "Create a new handler",
+	Long:    `Create a new handler in the internal/handlers directory.`,
+	Example: "  vel make:handler User\n  vel make:handler Admin/Dashboard --resource",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			ui.Error("controller name is required")
+			ui.Error("handler name is required")
 			ui.Newline()
 			ui.Muted("Usage:")
-			ui.Muted("  velocity make:controller [name]")
+			ui.Muted("  vel make:handler [name]")
 			ui.Newline()
 			ui.Muted("Examples:")
-			ui.Muted("  velocity make:controller User")
-			ui.Muted("  velocity make:controller Admin/Dashboard --resource")
+			ui.Muted("  vel make:handler User")
+			ui.Muted("  vel make:handler Admin/Dashboard --resource")
 			return fmt.Errorf("") // Return empty error to exit with code 1
 		}
 		if len(args) > 1 {
-			return fmt.Errorf("too many arguments, expected only controller name")
+			return fmt.Errorf("too many arguments, expected only handler name")
 		}
 		return nil
 	},
@@ -52,25 +53,25 @@ func init() {
 func runMakeController(cmd *cobra.Command, args []string) error {
 	name := args[0]
 
-	ui.Header("make:controller")
+	ui.Header("make:handler")
 
 	// Normalize name
-	controllerName := toControllerName(name)
+	handlerName := toHandlerName(name)
 
 	// Determine package and path
-	packageName := "controllers"
-	outputDir := "app/http/controllers"
+	packageName := "handlers"
+	outputDir := "internal/handlers"
 
 	// Check if name contains path separator
 	if strings.Contains(name, "/") {
 		parts := strings.Split(name, "/")
-		controllerName = toControllerName(parts[len(parts)-1])
+		handlerName = toHandlerName(parts[len(parts)-1])
 		packageName = strings.ToLower(parts[len(parts)-2])
 		// Lowercase all path parts for conventional Go package directories
 		for i := range parts[:len(parts)-1] {
 			parts[i] = strings.ToLower(parts[i])
 		}
-		outputDir = filepath.Join("app/http/controllers", filepath.Join(parts[:len(parts)-1]...))
+		outputDir = filepath.Join("internal/handlers", filepath.Join(parts[:len(parts)-1]...))
 	}
 
 	// Create directory if needed
@@ -80,25 +81,25 @@ func runMakeController(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate filename
-	filename := toSnakeCase(controllerName) + "_controller.go"
+	filename := toSnakeCase(handlerName) + ".go"
 	outputPath := filepath.Join(outputDir, filename)
 
 	// Check if file exists
 	if _, err := os.Stat(outputPath); err == nil {
-		ui.Error(fmt.Sprintf("Controller already exists: %s", outputPath))
-		return fmt.Errorf("controller already exists")
+		ui.Error(fmt.Sprintf("Handler already exists: %s", outputPath))
+		return fmt.Errorf("handler already exists")
 	}
 
 	// Load stub
-	stubContent, err := stubs.Get("app/http/controllers/controller.go.stub")
+	stubContent, err := stubs.Get("internal/handlers/handler.go.stub")
 	if err != nil {
 		// Fallback to basic template if stub not found
 		stubContent = []byte(`package {{ .Package }}
 
 import "github.com/velocitykode/velocity/pkg/router"
 
-func {{ .ControllerName }}(ctx *router.Context) error {
-	return ctx.String(200, "{{ .ControllerName }}")
+func {{ .HandlerName }}(ctx *router.Context) error {
+	return ctx.String(200, "{{ .HandlerName }}")
 }
 `)
 	}
@@ -111,10 +112,10 @@ func {{ .ControllerName }}(ctx *router.Context) error {
 	}
 
 	data := map[string]interface{}{
-		"Package":        packageName,
-		"ControllerName": controllerName,
-		"Resource":       makeControllerResource,
-		"API":            makeControllerAPI,
+		"Package":     packageName,
+		"HandlerName": handlerName,
+		"Resource":    makeControllerResource,
+		"API":         makeControllerAPI,
 	}
 
 	var buf bytes.Buffer
@@ -133,8 +134,10 @@ func {{ .ControllerName }}(ctx *router.Context) error {
 	return nil
 }
 
-func toControllerName(name string) string {
-	// Remove "Controller" suffix if present
+func toHandlerName(name string) string {
+	// Remove "Handler" or "Controller" suffix if present
+	name = strings.TrimSuffix(name, "Handler")
+	name = strings.TrimSuffix(name, "handler")
 	name = strings.TrimSuffix(name, "Controller")
 	name = strings.TrimSuffix(name, "controller")
 
