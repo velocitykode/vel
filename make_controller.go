@@ -20,9 +20,8 @@ var (
 )
 
 var makeControllerCmd = &cobra.Command{
-	Use:     "make:handler [name]",
-	Aliases: []string{"make:controller"},
-	Short:   "Create a new handler",
+	Use:   "make:handler [name]",
+	Short: "Create a new handler",
 	Long:    `Create a new handler in the internal/handlers directory.`,
 	Example: "  vel make:handler User\n  vel make:handler Admin/Dashboard --resource",
 	Args: func(cmd *cobra.Command, args []string) error {
