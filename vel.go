@@ -14,7 +14,7 @@ import (
 )
 
 // Version is the CLI version
-var Version = "0.7.10"
+var Version = "0.7.11"
 
 var rootCmd *cobra.Command
 
