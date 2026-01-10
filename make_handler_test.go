@@ -101,15 +101,15 @@ func TestSplitWords(t *testing.T) {
 	}
 }
 
-func TestRunMakeController_CreatesFile(t *testing.T) {
+func TestRunMakeHandler_CreatesFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	err := runMakeController(nil, []string{"User"})
+	err := runMakeHandler(nil, []string{"User"})
 	if err != nil {
-		t.Fatalf("runMakeController() error = %v", err)
+		t.Fatalf("runMakeHandler() error = %v", err)
 	}
 
 	expectedPath := "internal/handlers/user.go"
@@ -124,7 +124,7 @@ func TestRunMakeController_CreatesFile(t *testing.T) {
 	}
 }
 
-func TestRunMakeController_AlreadyExists(t *testing.T) {
+func TestRunMakeHandler_AlreadyExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -133,21 +133,21 @@ func TestRunMakeController_AlreadyExists(t *testing.T) {
 	os.MkdirAll("internal/handlers", 0755)
 	os.WriteFile("internal/handlers/user.go", []byte("existing"), 0644)
 
-	err := runMakeController(nil, []string{"User"})
+	err := runMakeHandler(nil, []string{"User"})
 	if err == nil {
-		t.Error("runMakeController() should error when file exists")
+		t.Error("runMakeHandler() should error when file exists")
 	}
 }
 
-func TestRunMakeController_WithPath(t *testing.T) {
+func TestRunMakeHandler_WithPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	err := runMakeController(nil, []string{"Admin/User"})
+	err := runMakeHandler(nil, []string{"Admin/User"})
 	if err != nil {
-		t.Fatalf("runMakeController() error = %v", err)
+		t.Fatalf("runMakeHandler() error = %v", err)
 	}
 
 	// Path is lowercased for Go convention
@@ -157,24 +157,24 @@ func TestRunMakeController_WithPath(t *testing.T) {
 	}
 }
 
-func TestRunMakeController_NoArgs(t *testing.T) {
+func TestRunMakeHandler_NoArgs(t *testing.T) {
 	// Test via command's Args validation
-	err := makeControllerCmd.Args(makeControllerCmd, []string{})
+	err := makeHandlerCmd.Args(makeHandlerCmd, []string{})
 	if err == nil {
 		t.Error("Args validation should error with no args")
 	}
 	// Error is now empty (styled output printed separately)
 }
 
-func TestRunMakeController_DeepNestedPath(t *testing.T) {
+func TestRunMakeHandler_DeepNestedPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	err := runMakeController(nil, []string{"Api/V1/Admin/User"})
+	err := runMakeHandler(nil, []string{"Api/V1/Admin/User"})
 	if err != nil {
-		t.Fatalf("runMakeController() error = %v", err)
+		t.Fatalf("runMakeHandler() error = %v", err)
 	}
 
 	expectedPath := "internal/handlers/api/v1/admin/user.go"
@@ -189,15 +189,15 @@ func TestRunMakeController_DeepNestedPath(t *testing.T) {
 	}
 }
 
-func TestRunMakeController_SnakeCaseInput(t *testing.T) {
+func TestRunMakeHandler_SnakeCaseInput(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	err := runMakeController(nil, []string{"user_profile"})
+	err := runMakeHandler(nil, []string{"user_profile"})
 	if err != nil {
-		t.Fatalf("runMakeController() error = %v", err)
+		t.Fatalf("runMakeHandler() error = %v", err)
 	}
 
 	// Should create user_profile.go with UserProfile function
@@ -212,7 +212,7 @@ func TestRunMakeController_SnakeCaseInput(t *testing.T) {
 	}
 }
 
-func TestRunMakeController_MkdirError(t *testing.T) {
+func TestRunMakeHandler_MkdirError(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -221,13 +221,13 @@ func TestRunMakeController_MkdirError(t *testing.T) {
 	// Create internal as a file (not directory) to cause MkdirAll to fail
 	os.WriteFile("internal", []byte("file"), 0644)
 
-	err := runMakeController(nil, []string{"User"})
+	err := runMakeHandler(nil, []string{"User"})
 	if err == nil {
-		t.Error("runMakeController() should error when cannot create directory")
+		t.Error("runMakeHandler() should error when cannot create directory")
 	}
 }
 
-func TestRunMakeController_WriteError(t *testing.T) {
+func TestRunMakeHandler_WriteError(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -240,8 +240,8 @@ func TestRunMakeController_WriteError(t *testing.T) {
 	os.Chmod("internal/handlers", 0555)
 	defer os.Chmod("internal/handlers", 0755)
 
-	err := runMakeController(nil, []string{"User"})
+	err := runMakeHandler(nil, []string{"User"})
 	if err == nil {
-		t.Error("runMakeController() should error when cannot write file")
+		t.Error("runMakeHandler() should error when cannot write file")
 	}
 }

@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	makeControllerResource bool
-	makeControllerAPI      bool
+	makeHandlerResource bool
+	makeHandlerAPI      bool
 )
 
-var makeControllerCmd = &cobra.Command{
+var makeHandlerCmd = &cobra.Command{
 	Use:   "make:handler [name]",
 	Short: "Create a new handler",
 	Long:    `Create a new handler in the internal/handlers directory.`,
@@ -41,15 +41,15 @@ var makeControllerCmd = &cobra.Command{
 		}
 		return nil
 	},
-	RunE: runMakeController,
+	RunE: runMakeHandler,
 }
 
 func init() {
-	makeControllerCmd.Flags().BoolVarP(&makeControllerResource, "resource", "r", false, "Generate a resource controller with CRUD methods")
-	makeControllerCmd.Flags().BoolVar(&makeControllerAPI, "api", false, "Generate an API controller (JSON responses)")
+	makeHandlerCmd.Flags().BoolVarP(&makeHandlerResource, "resource", "r", false, "Generate a resource handler with CRUD methods")
+	makeHandlerCmd.Flags().BoolVar(&makeHandlerAPI, "api", false, "Generate an API handler (JSON responses)")
 }
 
-func runMakeController(cmd *cobra.Command, args []string) error {
+func runMakeHandler(cmd *cobra.Command, args []string) error {
 	name := args[0]
 
 	ui.Header("make:handler")
@@ -104,7 +104,7 @@ func {{ .HandlerName }}(ctx *router.Context) error {
 	}
 
 	// Parse and execute template
-	tmpl, err := template.New("controller").Parse(string(stubContent))
+	tmpl, err := template.New("handler").Parse(string(stubContent))
 	if err != nil {
 		ui.Error(fmt.Sprintf("Failed to parse template: %v", err))
 		return err
@@ -113,8 +113,8 @@ func {{ .HandlerName }}(ctx *router.Context) error {
 	data := map[string]interface{}{
 		"Package":     packageName,
 		"HandlerName": handlerName,
-		"Resource":    makeControllerResource,
-		"API":         makeControllerAPI,
+		"Resource":    makeHandlerResource,
+		"API":         makeHandlerAPI,
 	}
 
 	var buf bytes.Buffer

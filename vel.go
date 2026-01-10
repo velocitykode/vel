@@ -1,6 +1,6 @@
 // Package vel provides an importable CLI for Velocity projects.
 // User projects import this package in cmd/vel/main.go to get
-// access to commands like serve, migrate, make:controller, etc.
+// access to commands like serve, migrate, make:handler, etc.
 package vel
 
 import (
@@ -38,7 +38,7 @@ func initRootCmd() {
 	rootCmd.AddCommand(buildCmd)
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(migrateFreshCmd)
-	rootCmd.AddCommand(makeControllerCmd)
+	rootCmd.AddCommand(makeHandlerCmd)
 	rootCmd.AddCommand(keyGenerateCmd)
 }
 
