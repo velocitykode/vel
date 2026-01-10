@@ -6,24 +6,24 @@ import (
 	"testing"
 )
 
-func TestToControllerName(t *testing.T) {
+func TestToHandlerName(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
 	}{
 		{"user", "User"},
 		{"User", "User"},
-		{"UserController", "User"},
-		{"userController", "User"},
+		{"UserHandler", "User"},
+		{"userHandler", "User"},
 		{"user_profile", "UserProfile"},
 		{"user-profile", "UserProfile"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := toControllerName(tt.input)
+			got := toHandlerName(tt.input)
 			if got != tt.expected {
-				t.Errorf("toControllerName(%q) = %q, want %q", tt.input, got, tt.expected)
+				t.Errorf("toHandlerName(%q) = %q, want %q", tt.input, got, tt.expected)
 			}
 		})
 	}
@@ -107,19 +107,17 @@ func TestRunMakeController_CreatesFile(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	os.MkdirAll("app/http/controllers", 0755)
-
 	err := runMakeController(nil, []string{"User"})
 	if err != nil {
 		t.Fatalf("runMakeController() error = %v", err)
 	}
 
-	expectedPath := "app/http/controllers/user_controller.go"
+	expectedPath := "internal/handlers/user.go"
 	if _, err := os.Stat(expectedPath); err != nil {
-		t.Errorf("Controller file not created at %s", expectedPath)
+		t.Errorf("Handler file not created at %s", expectedPath)
 	}
 
-	// Check file contents - template generates a function not a struct
+	// Check file contents - template generates a function
 	content, _ := os.ReadFile(expectedPath)
 	if !strings.Contains(string(content), "func User(") {
 		t.Error("Generated file should contain User function")
@@ -132,8 +130,8 @@ func TestRunMakeController_AlreadyExists(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	os.MkdirAll("app/http/controllers", 0755)
-	os.WriteFile("app/http/controllers/user_controller.go", []byte("existing"), 0644)
+	os.MkdirAll("internal/handlers", 0755)
+	os.WriteFile("internal/handlers/user.go", []byte("existing"), 0644)
 
 	err := runMakeController(nil, []string{"User"})
 	if err == nil {
@@ -153,9 +151,9 @@ func TestRunMakeController_WithPath(t *testing.T) {
 	}
 
 	// Path is lowercased for Go convention
-	expectedPath := "app/http/controllers/admin/user_controller.go"
+	expectedPath := "internal/handlers/admin/user.go"
 	if _, err := os.Stat(expectedPath); err != nil {
-		t.Errorf("Controller file not created at %s", expectedPath)
+		t.Errorf("Handler file not created at %s", expectedPath)
 	}
 }
 
@@ -179,9 +177,9 @@ func TestRunMakeController_DeepNestedPath(t *testing.T) {
 		t.Fatalf("runMakeController() error = %v", err)
 	}
 
-	expectedPath := "app/http/controllers/api/v1/admin/user_controller.go"
+	expectedPath := "internal/handlers/api/v1/admin/user.go"
 	if _, err := os.Stat(expectedPath); err != nil {
-		t.Errorf("Controller file not created at %s", expectedPath)
+		t.Errorf("Handler file not created at %s", expectedPath)
 	}
 
 	// Verify package name is the parent directory
@@ -197,17 +195,15 @@ func TestRunMakeController_SnakeCaseInput(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	os.MkdirAll("app/http/controllers", 0755)
-
 	err := runMakeController(nil, []string{"user_profile"})
 	if err != nil {
 		t.Fatalf("runMakeController() error = %v", err)
 	}
 
-	// Should create user_profile_controller.go with UserProfile function
-	expectedPath := "app/http/controllers/user_profile_controller.go"
+	// Should create user_profile.go with UserProfile function
+	expectedPath := "internal/handlers/user_profile.go"
 	if _, err := os.Stat(expectedPath); err != nil {
-		t.Errorf("Controller file not created at %s", expectedPath)
+		t.Errorf("Handler file not created at %s", expectedPath)
 	}
 
 	content, _ := os.ReadFile(expectedPath)
@@ -222,8 +218,8 @@ func TestRunMakeController_MkdirError(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	// Create app as a file (not directory) to cause MkdirAll to fail
-	os.WriteFile("app", []byte("file"), 0644)
+	// Create internal as a file (not directory) to cause MkdirAll to fail
+	os.WriteFile("internal", []byte("file"), 0644)
 
 	err := runMakeController(nil, []string{"User"})
 	if err == nil {
@@ -238,11 +234,11 @@ func TestRunMakeController_WriteError(t *testing.T) {
 	defer os.Chdir(originalDir)
 
 	// Create directory structure
-	os.MkdirAll("app/http/controllers", 0755)
+	os.MkdirAll("internal/handlers", 0755)
 
 	// Make directory read-only
-	os.Chmod("app/http/controllers", 0555)
-	defer os.Chmod("app/http/controllers", 0755)
+	os.Chmod("internal/handlers", 0555)
+	defer os.Chmod("internal/handlers", 0755)
 
 	err := runMakeController(nil, []string{"User"})
 	if err == nil {
