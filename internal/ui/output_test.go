@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHighlight(t *testing.T) {
@@ -90,6 +91,111 @@ func TestSpinnerWithError(t *testing.T) {
 	})
 	if err != expectedErr {
 		t.Errorf("Spinner should return error from action, got: %v", err)
+	}
+}
+
+func TestSpinner_ShowsDots(t *testing.T) {
+	// Test that the spinner shows dots animation when action takes longer than ticker interval
+	output := captureStdout(func() {
+		err := Spinner("Processing", func() error {
+			// Sleep longer than ticker interval (300ms) to trigger dot animation
+			time.Sleep(350 * time.Millisecond)
+			return nil
+		})
+		if err != nil {
+			t.Errorf("Spinner should return nil for successful action, got: %v", err)
+		}
+	})
+
+	// The output should contain the message and dots (at least one dot printed)
+	if !strings.Contains(output, "Processing") {
+		t.Errorf("Spinner output should contain the message, got: %q", output)
+	}
+	// Should contain at least one dot from the ticker
+	if !strings.Contains(output, ".") {
+		t.Errorf("Spinner output should contain dots from animation, got: %q", output)
+	}
+}
+
+func TestInfo(t *testing.T) {
+	tests := []struct {
+		name     string
+		message  string
+		wantText string
+	}{
+		{
+			name:     "prints info message",
+			message:  "Starting server",
+			wantText: "Starting server",
+		},
+		{
+			name:     "handles empty string",
+			message:  "",
+			wantText: "",
+		},
+		{
+			name:     "handles message with special chars",
+			message:  "Loading config from /etc/app.conf",
+			wantText: "Loading config from /etc/app.conf",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := captureStdout(func() {
+				Info(tt.message)
+			})
+
+			stripped := stripANSI(output)
+			if !strings.Contains(stripped, tt.wantText) {
+				t.Errorf("Info() output = %q, want to contain %q", stripped, tt.wantText)
+			}
+			// Should contain the arrow symbol
+			if !strings.Contains(output, "→") {
+				t.Errorf("Info() output should contain arrow symbol '→'")
+			}
+		})
+	}
+}
+
+func TestSuccess(t *testing.T) {
+	tests := []struct {
+		name     string
+		message  string
+		wantText string
+	}{
+		{
+			name:     "prints success message",
+			message:  "Build completed",
+			wantText: "Build completed",
+		},
+		{
+			name:     "handles empty string",
+			message:  "",
+			wantText: "",
+		},
+		{
+			name:     "handles success with path",
+			message:  "Created file: /tmp/output.txt",
+			wantText: "Created file: /tmp/output.txt",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := captureStdout(func() {
+				Success(tt.message)
+			})
+
+			stripped := stripANSI(output)
+			if !strings.Contains(stripped, tt.wantText) {
+				t.Errorf("Success() output = %q, want to contain %q", stripped, tt.wantText)
+			}
+			// Should contain the checkmark symbol
+			if !strings.Contains(output, "✓") {
+				t.Errorf("Success() output should contain checkmark symbol '✓'")
+			}
+		})
 	}
 }
 

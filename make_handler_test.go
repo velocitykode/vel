@@ -166,6 +166,17 @@ func TestRunMakeHandler_NoArgs(t *testing.T) {
 	// Error is now empty (styled output printed separately)
 }
 
+func TestRunMakeHandler_TooManyArgs(t *testing.T) {
+	// Test via command's Args validation - too many arguments
+	err := makeHandlerCmd.Args(makeHandlerCmd, []string{"User", "Extra"})
+	if err == nil {
+		t.Error("Args validation should error with too many args")
+	}
+	if err != nil && !strings.Contains(err.Error(), "too many arguments") {
+		t.Errorf("Error message should mention 'too many arguments', got: %v", err)
+	}
+}
+
 func TestRunMakeHandler_DeepNestedPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
