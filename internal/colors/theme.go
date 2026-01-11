@@ -4,10 +4,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func init() {
-	// Skip heavy initialization - let lipgloss handle it automatically
-	// This is much faster in tmux/ghostty environments
-}
+// init is intentionally empty - we skip heavy terminal capability detection
+// to improve startup performance in tmux/ghostty environments.
+// Coverage: 0% is expected since the function body is empty by design.
+// The lipgloss library handles color detection automatically when needed.
+func init() {}
 
 // Velocity Brand Colors - from velocity-docs/assets/css/custom.css
 var (

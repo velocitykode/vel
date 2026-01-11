@@ -1,6 +1,7 @@
 package vel
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -141,6 +142,13 @@ func TestNeedsRebuild_NoDirectories(t *testing.T) {
 }
 
 func TestNeedsRebuild_WithNewerGoMod(t *testing.T) {
+	// Save and mock osExecutable to simulate no executable found
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return "", errors.New("executable not found")
+	}
+
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -149,9 +157,11 @@ func TestNeedsRebuild_WithNewerGoMod(t *testing.T) {
 	// Create a go.mod file (will be newer than any existing binary)
 	os.WriteFile("go.mod", []byte("module test"), 0644)
 
-	// This test verifies the code path is exercised
-	// The result depends on whether an executable can be found
-	_ = needsRebuild()
+	// With a newer go.mod and no executable found, should not trigger rebuild
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when executable cannot be found")
+	}
 }
 
 func TestRebuildSelf_NoGoMod(t *testing.T) {
@@ -169,6 +179,13 @@ func TestRebuildSelf_NoGoMod(t *testing.T) {
 // Additional tests for needsRebuild coverage
 
 func TestNeedsRebuild_WithNewerGoSum(t *testing.T) {
+	// Save and mock osExecutable to simulate no executable found
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return "", errors.New("executable not found")
+	}
+
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -177,11 +194,21 @@ func TestNeedsRebuild_WithNewerGoSum(t *testing.T) {
 	// Create a go.sum file (will be newer than any existing binary)
 	os.WriteFile("go.sum", []byte("github.com/example/pkg v1.0.0 h1:abc\n"), 0644)
 
-	// This test verifies the go.sum check path is exercised
-	_ = needsRebuild()
+	// With a newer go.sum and no executable found, should not trigger rebuild
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when executable cannot be found")
+	}
 }
 
 func TestNeedsRebuild_WithNewerFilesInCmdVel(t *testing.T) {
+	// Save and mock osExecutable to simulate no executable found
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return "", errors.New("executable not found")
+	}
+
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -191,11 +218,21 @@ func TestNeedsRebuild_WithNewerFilesInCmdVel(t *testing.T) {
 	os.MkdirAll("cmd/vel", 0755)
 	os.WriteFile("cmd/vel/main.go", []byte("package main"), 0644)
 
-	// This test verifies the cmd/vel directory check path is exercised
-	_ = needsRebuild()
+	// With newer files and no executable found, should not trigger rebuild
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when executable cannot be found")
+	}
 }
 
 func TestNeedsRebuild_WithNewerFilesInBootstrap(t *testing.T) {
+	// Save and mock osExecutable to simulate no executable found
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return "", errors.New("executable not found")
+	}
+
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -205,11 +242,21 @@ func TestNeedsRebuild_WithNewerFilesInBootstrap(t *testing.T) {
 	os.MkdirAll("bootstrap", 0755)
 	os.WriteFile("bootstrap/app.go", []byte("package bootstrap"), 0644)
 
-	// This test verifies the bootstrap directory check path is exercised
-	_ = needsRebuild()
+	// With newer files and no executable found, should not trigger rebuild
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when executable cannot be found")
+	}
 }
 
 func TestNeedsRebuild_WithNewerFilesInMigrations(t *testing.T) {
+	// Save and mock osExecutable to simulate no executable found
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return "", errors.New("executable not found")
+	}
+
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -219,11 +266,21 @@ func TestNeedsRebuild_WithNewerFilesInMigrations(t *testing.T) {
 	os.MkdirAll("database/migrations", 0755)
 	os.WriteFile("database/migrations/001_initial.go", []byte("package migrations"), 0644)
 
-	// This test verifies the database/migrations directory check path is exercised
-	_ = needsRebuild()
+	// With newer files and no executable found, should not trigger rebuild
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when executable cannot be found")
+	}
 }
 
 func TestNeedsRebuild_WithOlderGoMod(t *testing.T) {
+	// Save and mock osExecutable to simulate no executable found
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return "", errors.New("executable not found")
+	}
+
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -236,12 +293,21 @@ func TestNeedsRebuild_WithOlderGoMod(t *testing.T) {
 	pastTime := time.Now().Add(-24 * time.Hour)
 	os.Chtimes("go.mod", pastTime, pastTime)
 
-	// This test verifies that older go.mod doesn't trigger rebuild
-	// (result depends on executable availability, but exercises the code path)
-	_ = needsRebuild()
+	// With older go.mod and no executable, should return false
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when executable cannot be found")
+	}
 }
 
 func TestNeedsRebuild_WithOlderGoSum(t *testing.T) {
+	// Save and mock osExecutable to simulate no executable found
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return "", errors.New("executable not found")
+	}
+
 	tmpDir := t.TempDir()
 	originalDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
@@ -254,9 +320,45 @@ func TestNeedsRebuild_WithOlderGoSum(t *testing.T) {
 	pastTime := time.Now().Add(-24 * time.Hour)
 	os.Chtimes("go.sum", pastTime, pastTime)
 
-	// This test verifies that older go.sum doesn't trigger rebuild
-	// (result depends on executable availability, but exercises the code path)
-	_ = needsRebuild()
+	// With older go.sum and no executable, should return false
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when executable cannot be found")
+	}
+}
+
+func TestNeedsRebuild_ExecutableError(t *testing.T) {
+	// Save original osExecutable and restore after test
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+
+	// Mock osExecutable to return an error
+	osExecutable = func() (string, error) {
+		return "", errors.New("executable path unknown")
+	}
+
+	// When os.Executable() returns an error, needsRebuild should return false
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when os.Executable() returns an error")
+	}
+}
+
+func TestNeedsRebuild_StatError(t *testing.T) {
+	// Save original osExecutable and restore after test
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+
+	// Mock osExecutable to return a non-existent path
+	osExecutable = func() (string, error) {
+		return "/nonexistent/path/to/binary", nil
+	}
+
+	// When os.Stat() fails on the executable, needsRebuild should return false
+	result := needsRebuild()
+	if result {
+		t.Error("needsRebuild() should return false when executable path cannot be stat'd")
+	}
 }
 
 // Additional tests for Execute coverage

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -41,6 +42,30 @@ func TestTask(t *testing.T) {
 	}
 	if !called {
 		t.Error("Task action was not called")
+	}
+}
+
+func TestTask_WithError(t *testing.T) {
+	expectedErr := fmt.Errorf("test error")
+	err := Task("Testing step", "Test complete", func() error {
+		return expectedErr
+	})
+	if err != expectedErr {
+		t.Errorf("Task should return error from action, got: %v", err)
+	}
+}
+
+func TestTask_ErrorPreservesMessage(t *testing.T) {
+	expectedMessage := "connection timeout: failed to reach server"
+	originalErr := errors.New(expectedMessage)
+	err := Task("Connecting", "Connected", func() error {
+		return originalErr
+	})
+	if err == nil {
+		t.Fatal("Task should return error when action fails")
+	}
+	if err.Error() != expectedMessage {
+		t.Errorf("Task should preserve original error message, got: %q, want: %q", err.Error(), expectedMessage)
 	}
 }
 

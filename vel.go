@@ -13,6 +13,9 @@ import (
 	"github.com/velocitykode/vel/internal/ui"
 )
 
+// osExecutable is a variable for testing - allows mocking os.Executable
+var osExecutable = os.Executable
+
 // Version is the CLI version
 var Version = "0.7.28"
 
@@ -62,7 +65,7 @@ func Execute() error {
 
 // needsRebuild checks if the vel binary needs to be rebuilt
 func needsRebuild() bool {
-	velBinary, err := os.Executable()
+	velBinary, err := osExecutable()
 	if err != nil {
 		return false
 	}
