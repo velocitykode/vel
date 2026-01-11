@@ -456,3 +456,186 @@ func TestHasNewerFiles_WithDeeplyNestedGoFiles(t *testing.T) {
 		t.Error("hasNewerFiles() should find Go files in deeply nested directories")
 	}
 }
+
+func TestExecute_ErrorWithEmptyMessage(t *testing.T) {
+	rootCmd = nil
+
+	// Save original args and restore after test
+	originalArgs := os.Args
+	defer func() { os.Args = originalArgs }()
+
+	// make:handler without args returns error with empty message
+	// (the error is printed by the Args function, and an empty error is returned)
+	os.Args = []string{"vel", "make:handler"}
+
+	err := Execute()
+	// This tests the path where err != nil but err.Error() == ""
+	// The function should return the error but not print it
+	if err == nil {
+		t.Error("Execute() should return error for make:handler without args")
+	}
+}
+
+func TestNeedsRebuild_WithValidExecutableAndNewerGoMod(t *testing.T) {
+	// Create a temp directory with a fake executable
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
+	// Create a fake binary file that we can stat
+	fakeBinary := tmpDir + "/fake_vel_binary"
+	os.WriteFile(fakeBinary, []byte("fake binary"), 0755)
+
+	// Set the binary's modtime to the past
+	pastTime := time.Now().Add(-24 * time.Hour)
+	os.Chtimes(fakeBinary, pastTime, pastTime)
+
+	// Create a go.mod file that is newer than the binary
+	os.WriteFile("go.mod", []byte("module test"), 0644)
+
+	// Mock osExecutable to return our fake binary
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return fakeBinary, nil
+	}
+
+	result := needsRebuild()
+	if result != true {
+		t.Error("needsRebuild() should return true when go.mod is newer than binary")
+	}
+}
+
+func TestNeedsRebuild_WithValidExecutableAndNewerGoSum(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
+	// Create a fake binary file
+	fakeBinary := tmpDir + "/fake_vel_binary"
+	os.WriteFile(fakeBinary, []byte("fake binary"), 0755)
+
+	// Set the binary's modtime to the past
+	pastTime := time.Now().Add(-24 * time.Hour)
+	os.Chtimes(fakeBinary, pastTime, pastTime)
+
+	// Create a go.sum file that is newer than the binary
+	os.WriteFile("go.sum", []byte("github.com/example v1.0.0"), 0644)
+
+	// Mock osExecutable
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return fakeBinary, nil
+	}
+
+	result := needsRebuild()
+	if result != true {
+		t.Error("needsRebuild() should return true when go.sum is newer than binary")
+	}
+}
+
+func TestNeedsRebuild_WithValidExecutableAndNewerFilesInCmdVel(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
+	// Create a fake binary file
+	fakeBinary := tmpDir + "/fake_vel_binary"
+	os.WriteFile(fakeBinary, []byte("fake binary"), 0755)
+
+	// Set the binary's modtime to the past
+	pastTime := time.Now().Add(-24 * time.Hour)
+	os.Chtimes(fakeBinary, pastTime, pastTime)
+
+	// Create cmd/vel directory with a newer Go file
+	os.MkdirAll("cmd/vel", 0755)
+	os.WriteFile("cmd/vel/main.go", []byte("package main"), 0644)
+
+	// Mock osExecutable
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return fakeBinary, nil
+	}
+
+	result := needsRebuild()
+	if result != true {
+		t.Error("needsRebuild() should return true when cmd/vel has newer files")
+	}
+}
+
+func TestNeedsRebuild_WithValidExecutableAndOlderFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
+	// Create a fake binary file with current time
+	fakeBinary := tmpDir + "/fake_vel_binary"
+	os.WriteFile(fakeBinary, []byte("fake binary"), 0755)
+
+	// Create old go.mod and go.sum
+	pastTime := time.Now().Add(-24 * time.Hour)
+	os.WriteFile("go.mod", []byte("module test"), 0644)
+	os.Chtimes("go.mod", pastTime, pastTime)
+	os.WriteFile("go.sum", []byte("dep v1.0.0"), 0644)
+	os.Chtimes("go.sum", pastTime, pastTime)
+
+	// Create old cmd/vel directory
+	os.MkdirAll("cmd/vel", 0755)
+	os.WriteFile("cmd/vel/main.go", []byte("package main"), 0644)
+	os.Chtimes("cmd/vel/main.go", pastTime, pastTime)
+
+	// Mock osExecutable
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return fakeBinary, nil
+	}
+
+	result := needsRebuild()
+	if result != false {
+		t.Error("needsRebuild() should return false when all files are older than binary")
+	}
+}
+
+func TestExecute_TriggersRebuildWhenNeeded(t *testing.T) {
+	rootCmd = nil
+
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
+	// Create a fake binary file with past modtime
+	fakeBinary := tmpDir + "/fake_vel_binary"
+	os.WriteFile(fakeBinary, []byte("fake binary"), 0755)
+	pastTime := time.Now().Add(-24 * time.Hour)
+	os.Chtimes(fakeBinary, pastTime, pastTime)
+
+	// Create a newer go.mod to trigger rebuild
+	os.WriteFile("go.mod", []byte("module test"), 0644)
+
+	// Mock osExecutable
+	originalOsExecutable := osExecutable
+	defer func() { osExecutable = originalOsExecutable }()
+	osExecutable = func() (string, error) {
+		return fakeBinary, nil
+	}
+
+	// Save and set args
+	originalArgs := os.Args
+	defer func() { os.Args = originalArgs }()
+	os.Args = []string{"vel", "--help"}
+
+	// Execute should trigger rebuildSelf (which will fail gracefully)
+	// and then continue to execute the command
+	err := Execute()
+	if err != nil {
+		t.Errorf("Execute() should not error with --help, got: %v", err)
+	}
+}
