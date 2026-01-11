@@ -32,5 +32,5 @@ velocity
 .DS_Store
 Thumbs.dbdist/
 
-# Auto Claude data directory
-.auto-claude/
+.vk/
+.worktrees/
