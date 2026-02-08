@@ -33,6 +33,11 @@ func runMigrate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if orm.DB() == nil {
+		ui.Warning("No database configured (DB_CONNECTION not set), skipping migrations")
+		return nil
+	}
+
 	// Get all registered migrations (via init() imports in user's cmd/velocity/main.go)
 	migrations := migrate.All()
 	if len(migrations) == 0 {
@@ -79,6 +84,11 @@ func runMigrateFresh(cmd *cobra.Command, args []string) error {
 	if err := orm.InitFromEnv(); err != nil {
 		ui.Error(fmt.Sprintf("Database connection failed: %v", err))
 		return err
+	}
+
+	if orm.DB() == nil {
+		ui.Warning("No database configured (DB_CONNECTION not set), skipping migrations")
+		return nil
 	}
 
 	// Get all registered migrations
