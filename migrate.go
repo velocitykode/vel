@@ -189,23 +189,42 @@ func runMigrateRollback(cmd *cobra.Command, args []string) error {
 func getRollbackMigrations(steps int) ([]string, error) {
 	db := orm.DB()
 
-	rows, err := db.Query(
-		"SELECT version FROM migrations WHERE batch > (SELECT COALESCE(MAX(batch), 0) - ? FROM migrations) ORDER BY version DESC",
-		steps,
-	)
+	// Query all migrations with batch info (no parameters, works on all drivers)
+	rows, err := db.Query("SELECT version, batch FROM migrations ORDER BY version DESC")
 	if err != nil {
-		// Table might not exist yet
 		return nil, nil
 	}
 	defer rows.Close()
 
-	var versions []string
+	// Find the max batch and collect version/batch pairs
+	type migrationRecord struct {
+		version string
+		batch   int
+	}
+	var records []migrationRecord
+	maxBatch := 0
 	for rows.Next() {
-		var version string
-		if err := rows.Scan(&version); err != nil {
+		var r migrationRecord
+		if err := rows.Scan(&r.version, &r.batch); err != nil {
 			continue
 		}
-		versions = append(versions, version)
+		records = append(records, r)
+		if r.batch > maxBatch {
+			maxBatch = r.batch
+		}
+	}
+
+	if maxBatch == 0 {
+		return nil, nil
+	}
+
+	// Filter to versions in the last N batches
+	cutoff := maxBatch - steps
+	var versions []string
+	for _, r := range records {
+		if r.batch > cutoff {
+			versions = append(versions, r.version)
+		}
 	}
 
 	return versions, nil

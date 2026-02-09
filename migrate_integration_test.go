@@ -613,3 +613,168 @@ func TestRunMigrateRollback_RollsBackLastBatch(t *testing.T) {
 		t.Errorf("Expected fewer migrations after rollback, got %d (was %d)", len(afterRollback), initialCount)
 	}
 }
+
+// Tests for getRollbackMigrations - these set up DB state directly
+// and don't depend on registered migrations.
+
+func TestGetRollbackMigrations_EmptyTable(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	tdb.CreateMigrationsTable(t)
+
+	versions, err := getRollbackMigrations(1)
+	if err != nil {
+		t.Fatalf("getRollbackMigrations() error = %v", err)
+	}
+
+	if len(versions) != 0 {
+		t.Errorf("Expected 0 versions from empty table, got %d", len(versions))
+	}
+}
+
+func TestGetRollbackMigrations_SingleBatch(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	tdb.CreateMigrationsTable(t)
+	tdb.MarkMigrationApplied(t, "20010101000001", 1)
+	tdb.MarkMigrationApplied(t, "20010101000002", 1)
+	tdb.MarkMigrationApplied(t, "20010101000003", 1)
+
+	versions, err := getRollbackMigrations(1)
+	if err != nil {
+		t.Fatalf("getRollbackMigrations() error = %v", err)
+	}
+
+	if len(versions) != 3 {
+		t.Errorf("Expected 3 versions, got %d", len(versions))
+	}
+}
+
+func TestGetRollbackMigrations_MultipleBatches_RollbackOne(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	tdb.CreateMigrationsTable(t)
+	// Batch 1
+	tdb.MarkMigrationApplied(t, "20010101000001", 1)
+	tdb.MarkMigrationApplied(t, "20010101000002", 1)
+	// Batch 2
+	tdb.MarkMigrationApplied(t, "20010101000003", 2)
+	tdb.MarkMigrationApplied(t, "20010101000004", 2)
+
+	versions, err := getRollbackMigrations(1)
+	if err != nil {
+		t.Fatalf("getRollbackMigrations() error = %v", err)
+	}
+
+	// Should only return batch 2 versions
+	if len(versions) != 2 {
+		t.Errorf("Expected 2 versions from batch 2, got %d: %v", len(versions), versions)
+	}
+
+	expected := map[string]bool{"20010101000003": true, "20010101000004": true}
+	for _, v := range versions {
+		if !expected[v] {
+			t.Errorf("Unexpected version in rollback: %s", v)
+		}
+	}
+}
+
+func TestGetRollbackMigrations_MultipleBatches_RollbackTwo(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	tdb.CreateMigrationsTable(t)
+	// Batch 1
+	tdb.MarkMigrationApplied(t, "20010101000001", 1)
+	// Batch 2
+	tdb.MarkMigrationApplied(t, "20010101000002", 2)
+	// Batch 3
+	tdb.MarkMigrationApplied(t, "20010101000003", 3)
+
+	versions, err := getRollbackMigrations(2)
+	if err != nil {
+		t.Fatalf("getRollbackMigrations() error = %v", err)
+	}
+
+	// Should return batch 2 and 3 versions
+	if len(versions) != 2 {
+		t.Errorf("Expected 2 versions from batches 2+3, got %d: %v", len(versions), versions)
+	}
+
+	expected := map[string]bool{"20010101000002": true, "20010101000003": true}
+	for _, v := range versions {
+		if !expected[v] {
+			t.Errorf("Unexpected version in rollback: %s", v)
+		}
+	}
+}
+
+func TestGetRollbackMigrations_StepExceedsBatches(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	tdb.CreateMigrationsTable(t)
+	tdb.MarkMigrationApplied(t, "20010101000001", 1)
+	tdb.MarkMigrationApplied(t, "20010101000002", 2)
+
+	// Ask for 10 steps but only 2 batches exist — should return all
+	versions, err := getRollbackMigrations(10)
+	if err != nil {
+		t.Fatalf("getRollbackMigrations() error = %v", err)
+	}
+
+	if len(versions) != 2 {
+		t.Errorf("Expected 2 versions (all), got %d: %v", len(versions), versions)
+	}
+}
+
+func TestGetRollbackMigrations_ReturnsDescendingOrder(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	tdb.CreateMigrationsTable(t)
+	tdb.MarkMigrationApplied(t, "20010101000001", 1)
+	tdb.MarkMigrationApplied(t, "20010101000002", 1)
+	tdb.MarkMigrationApplied(t, "20010101000003", 1)
+
+	versions, err := getRollbackMigrations(1)
+	if err != nil {
+		t.Fatalf("getRollbackMigrations() error = %v", err)
+	}
+
+	if len(versions) != 3 {
+		t.Fatalf("Expected 3 versions, got %d", len(versions))
+	}
+
+	// Query orders by version DESC
+	if versions[0] != "20010101000003" || versions[1] != "20010101000002" || versions[2] != "20010101000001" {
+		t.Errorf("Expected descending order, got: %v", versions)
+	}
+}
