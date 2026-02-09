@@ -41,6 +41,7 @@ func initRootCmd() {
 	rootCmd.AddCommand(buildCmd)
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(migrateFreshCmd)
+	rootCmd.AddCommand(migrateRollbackCmd)
 	rootCmd.AddCommand(makeHandlerCmd)
 	rootCmd.AddCommand(keyGenerateCmd)
 }

@@ -21,5 +21,13 @@ func TestRunMigrateFresh_FailsWithoutDatabase(t *testing.T) {
 	}
 }
 
+func TestRunMigrateRollback_FailsWithoutDatabase(t *testing.T) {
+	// runMigrateRollback requires database connection
+	err := runMigrateRollback(migrateRollbackCmd, nil)
+	if err == nil {
+		t.Error("runMigrateRollback() should error when database not configured")
+	}
+}
+
 // Note: Full integration tests for migrate require a real database
 // Those should be in a separate integration test file with build tag

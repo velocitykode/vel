@@ -8,9 +8,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/spf13/cobra v1.10.1
 	github.com/velocitykode/velocity v0.9.1
-	golang.org/x/mod v0.28.0
-	golang.org/x/term v0.36.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -21,6 +18,7 @@ require (
 	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/lib/pq v1.10.9 // indirect
@@ -31,5 +29,5 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
 )

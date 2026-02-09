@@ -512,3 +512,104 @@ func TestRunMigrateFresh_NoMigrationsRegistered(t *testing.T) {
 		t.Logf("Output: %s", output)
 	}
 }
+
+func TestRunMigrateRollback_NoDatabaseConfigured(t *testing.T) {
+	os.Unsetenv("DB_CONNECTION")
+	os.Unsetenv("DB_DATABASE")
+
+	err := runMigrateRollback(migrateRollbackCmd, nil)
+	if err == nil {
+		t.Error("runMigrateRollback() should error when database not configured")
+	}
+}
+
+func TestRunMigrateRollback_NoMigrationsRegistered(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	migrations := migrate.All()
+	if len(migrations) > 0 {
+		t.Skip("Skipping - migrations are registered in this environment")
+	}
+
+	output := testutil.CaptureStdout(t, func() {
+		err := runMigrateRollback(migrateRollbackCmd, nil)
+		if err != nil {
+			t.Errorf("runMigrateRollback() should return nil when no migrations registered, got: %v", err)
+		}
+	})
+
+	if !bytes.Contains([]byte(output), []byte("No migrations found")) {
+		t.Logf("Output: %s", output)
+	}
+}
+
+func TestRunMigrateRollback_NothingToRollback(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	migrations := migrate.All()
+	if len(migrations) == 0 {
+		t.Skip("No migrations registered - cannot test rollback path")
+	}
+
+	// Create empty migrations table - nothing has been applied
+	tdb.CreateMigrationsTable(t)
+
+	output := testutil.CaptureStdout(t, func() {
+		err := runMigrateRollback(migrateRollbackCmd, nil)
+		if err != nil {
+			t.Errorf("runMigrateRollback() should not error when nothing to rollback, got: %v", err)
+		}
+	})
+
+	t.Logf("Output: %s", output)
+}
+
+func TestRunMigrateRollback_RollsBackLastBatch(t *testing.T) {
+	tdb := testutil.SetupTestDB(t)
+	defer tdb.Cleanup()
+
+	if err := orm.InitFromEnv(); err != nil {
+		t.Fatalf("Failed to initialize ORM: %v", err)
+	}
+
+	migrations := migrate.All()
+	if len(migrations) == 0 {
+		t.Skip("No migrations registered - cannot test rollback execution")
+	}
+
+	// First run migrate to apply all migrations
+	err := runMigrate(migrateCmd, nil)
+	if err != nil {
+		t.Fatalf("runMigrate() error = %v", err)
+	}
+
+	// Verify migrations were applied
+	applied := tdb.GetAppliedMigrations(t)
+	if len(applied) == 0 {
+		t.Skip("No migrations were applied - cannot test rollback")
+	}
+
+	initialCount := len(applied)
+
+	// Run rollback
+	err = runMigrateRollback(migrateRollbackCmd, nil)
+	if err != nil {
+		t.Errorf("runMigrateRollback() error = %v", err)
+	}
+
+	// Verify some migrations were rolled back
+	afterRollback := tdb.GetAppliedMigrations(t)
+	if len(afterRollback) >= initialCount {
+		t.Errorf("Expected fewer migrations after rollback, got %d (was %d)", len(afterRollback), initialCount)
+	}
+}
