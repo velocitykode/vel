@@ -5,7 +5,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/velocitystack/velocity/pkg/log"
+	"github.com/velocitykode/velocity/pkg/log"
 )
 
 // LoggingMiddleware logs all HTTP requests

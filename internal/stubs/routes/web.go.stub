@@ -1,19 +1,14 @@
 package routes
 
 import (
-	"{{.Module}}/app/controllers"
+	"{{.Module}}/internal/handlers"
 
-	"github.com/velocitystack/velocity/pkg/router"
+	"github.com/velocitykode/velocity"
+	"github.com/velocitykode/velocity/pkg/router"
 )
 
-func init() {
-	router.Register(func(r router.Router) {
-		// Create controller instance
-		homeController := controllers.HomeController{}
+func Register(v *velocity.App) {
+	r := v.Router
 
-		// Home routes
-		r.Get("/", homeController.Index).Name("home")
-		r.Get("/about", homeController.About).Name("about")
-		r.Get("/contact", homeController.Contact).Name("contact")
-	})
+	r.Get("/", handlers.Home)
 }

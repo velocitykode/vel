@@ -1,6 +1,6 @@
 module github.com/velocitykode/vel
 
-go 1.25.1
+go 1.25.7
 
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
