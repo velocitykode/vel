@@ -151,7 +151,6 @@ func TestGetPendingMigrations_NoneApplied(t *testing.T) {
 	}
 }
 
-
 // TestRunMigrate_NoDatabaseConfigured tests that runMigrate returns an error
 // when the database is not configured (no DB_CONNECTION environment variable).
 // This is tested via environment variable manipulation.
