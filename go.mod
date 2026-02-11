@@ -7,7 +7,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/spf13/cobra v1.10.1
-	github.com/velocitykode/velocity v0.9.8
+	github.com/velocitykode/velocity v0.9.9
 )
 
 require (
