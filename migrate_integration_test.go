@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/velocitykode/vel/testutil"
-	"github.com/velocitykode/velocity/pkg/orm"
 	"github.com/velocitykode/velocity/pkg/orm/migrate"
 )
 
@@ -44,10 +43,15 @@ func TestGetPendingMigrations_FiltersApplied(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	// Initialize ORM from environment (SetupTestDB sets the env vars)
-	if err := orm.InitFromEnv(); err != nil {
+	// Initialize ORM manager from environment (SetupTestDB sets the env vars)
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	// Create migrations table and mark first migration as applied
 	tdb.CreateMigrationsTable(t)
@@ -55,8 +59,7 @@ func TestGetPendingMigrations_FiltersApplied(t *testing.T) {
 
 	// Get pending migrations
 	allMigrations := testMigrations()
-	migrator := migrate.NewMigrator(orm.DB(), "sqlite")
-	pending, err := getPendingMigrations(migrator, allMigrations)
+	pending, err := getPendingMigrations(manager.DB(), allMigrations)
 	if err != nil {
 		t.Fatalf("getPendingMigrations() error = %v", err)
 	}
@@ -83,10 +86,15 @@ func TestGetPendingMigrations_AllApplied(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
+	// Initialize ORM manager from environment
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	// Create migrations table and mark ALL migrations as applied
 	tdb.CreateMigrationsTable(t)
@@ -96,8 +104,7 @@ func TestGetPendingMigrations_AllApplied(t *testing.T) {
 
 	// Get pending migrations
 	allMigrations := testMigrations()
-	migrator := migrate.NewMigrator(orm.DB(), "sqlite")
-	pending, err := getPendingMigrations(migrator, allMigrations)
+	pending, err := getPendingMigrations(manager.DB(), allMigrations)
 	if err != nil {
 		t.Fatalf("getPendingMigrations() error = %v", err)
 	}
@@ -113,18 +120,22 @@ func TestGetPendingMigrations_NoneApplied(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
+	// Initialize ORM manager from environment
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	// Create migrations table but don't mark any as applied
 	tdb.CreateMigrationsTable(t)
 
 	// Get pending migrations
 	allMigrations := testMigrations()
-	migrator := migrate.NewMigrator(orm.DB(), "sqlite")
-	pending, err := getPendingMigrations(migrator, allMigrations)
+	pending, err := getPendingMigrations(manager.DB(), allMigrations)
 	if err != nil {
 		t.Fatalf("getPendingMigrations() error = %v", err)
 	}
@@ -151,17 +162,16 @@ func TestGetPendingMigrations_NoneApplied(t *testing.T) {
 	}
 }
 
-// TestRunMigrate_NoDatabaseConfigured tests that runMigrate returns an error
+// TestRunMigrate_NoDatabaseConfigured tests that runMigrate gracefully skips
 // when the database is not configured (no DB_CONNECTION environment variable).
-// This is tested via environment variable manipulation.
 func TestRunMigrate_NoDatabaseConfigured(t *testing.T) {
 	// Ensure no database environment variables are set
 	os.Unsetenv("DB_CONNECTION")
 	os.Unsetenv("DB_DATABASE")
 
 	err := runMigrate(nil, nil)
-	if err == nil {
-		t.Error("runMigrate() should error when database not configured")
+	if err != nil {
+		t.Errorf("runMigrate() should return nil when database not configured, got: %v", err)
 	}
 }
 
@@ -173,11 +183,6 @@ func TestRunMigrate_NoMigrationsRegistered(t *testing.T) {
 	// Setup test database
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
-
-	// Initialize ORM from environment (SetupTestDB sets the env vars)
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
 
 	// Capture stdout to verify the warning message
 	output := testutil.CaptureStdout(t, func() {
@@ -205,11 +210,6 @@ func TestRunMigrate_ExecutesPendingMigrations(t *testing.T) {
 	// Setup test database
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
-
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
 
 	// Get registered migrations
 	migrations := migrate.All()
@@ -247,11 +247,6 @@ func TestRunMigrate_NoPendingMigrations(t *testing.T) {
 	// Setup test database
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
-
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
 
 	// Get registered migrations
 	migrations := migrate.All()
@@ -293,11 +288,6 @@ func TestRunMigrate_MigrationFails(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
-
 	// Get registered migrations
 	migrations := migrate.All()
 
@@ -326,11 +316,6 @@ func TestRunMigrateFresh_DropsAndRecreates(t *testing.T) {
 	// Setup test database
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
-
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
 
 	// Create a test table to simulate existing data that should be dropped
 	tdb.ExecSQL(t, `CREATE TABLE test_existing_table (
@@ -385,11 +370,6 @@ func TestRunMigrateFresh_EmptyDatabase(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
-
 	// Verify database is empty (no migrations table)
 	if tdb.TableExists(t, "migrations") {
 		t.Fatal("migrations table should not exist in fresh database")
@@ -427,11 +407,6 @@ func TestRunMigrateFresh_PartialFailure(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
-
 	// Get registered migrations
 	migrations := migrate.All()
 
@@ -465,16 +440,16 @@ func TestRunMigrateFresh_PartialFailure(t *testing.T) {
 	}
 }
 
-// TestRunMigrateFresh_NoDatabaseConfigured tests that runMigrateFresh returns
-// an error when no database is configured.
+// TestRunMigrateFresh_NoDatabaseConfigured tests that runMigrateFresh gracefully
+// skips when no database is configured.
 func TestRunMigrateFresh_NoDatabaseConfigured(t *testing.T) {
 	// Ensure no database environment variables are set
 	os.Unsetenv("DB_CONNECTION")
 	os.Unsetenv("DB_DATABASE")
 
 	err := runMigrateFresh(nil, nil)
-	if err == nil {
-		t.Error("runMigrateFresh() should error when database not configured")
+	if err != nil {
+		t.Errorf("runMigrateFresh() should return nil when database not configured, got: %v", err)
 	}
 }
 
@@ -484,11 +459,6 @@ func TestRunMigrateFresh_NoMigrationsRegistered(t *testing.T) {
 	// Setup test database
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
-
-	// Initialize ORM from environment
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
 
 	// In the test environment, migrate.All() typically returns empty
 	// because no migrations are registered via init() functions
@@ -517,18 +487,14 @@ func TestRunMigrateRollback_NoDatabaseConfigured(t *testing.T) {
 	os.Unsetenv("DB_DATABASE")
 
 	err := runMigrateRollback(migrateRollbackCmd, nil)
-	if err == nil {
-		t.Error("runMigrateRollback() should error when database not configured")
+	if err != nil {
+		t.Errorf("runMigrateRollback() should return nil when database not configured, got: %v", err)
 	}
 }
 
 func TestRunMigrateRollback_NoMigrationsRegistered(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
-
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
 
 	migrations := migrate.All()
 	if len(migrations) > 0 {
@@ -551,10 +517,6 @@ func TestRunMigrateRollback_NothingToRollback(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
-
 	migrations := migrate.All()
 	if len(migrations) == 0 {
 		t.Skip("No migrations registered - cannot test rollback path")
@@ -576,10 +538,6 @@ func TestRunMigrateRollback_NothingToRollback(t *testing.T) {
 func TestRunMigrateRollback_RollsBackLastBatch(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
-
-	if err := orm.InitFromEnv(); err != nil {
-		t.Fatalf("Failed to initialize ORM: %v", err)
-	}
 
 	migrations := migrate.All()
 	if len(migrations) == 0 {
@@ -620,13 +578,18 @@ func TestGetRollbackMigrations_EmptyTable(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	tdb.CreateMigrationsTable(t)
 
-	versions, err := getRollbackMigrations(1)
+	versions, err := getRollbackMigrations(manager.DB(), 1)
 	if err != nil {
 		t.Fatalf("getRollbackMigrations() error = %v", err)
 	}
@@ -640,16 +603,21 @@ func TestGetRollbackMigrations_SingleBatch(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	tdb.CreateMigrationsTable(t)
 	tdb.MarkMigrationApplied(t, "20010101000001", 1)
 	tdb.MarkMigrationApplied(t, "20010101000002", 1)
 	tdb.MarkMigrationApplied(t, "20010101000003", 1)
 
-	versions, err := getRollbackMigrations(1)
+	versions, err := getRollbackMigrations(manager.DB(), 1)
 	if err != nil {
 		t.Fatalf("getRollbackMigrations() error = %v", err)
 	}
@@ -663,9 +631,14 @@ func TestGetRollbackMigrations_MultipleBatches_RollbackOne(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	tdb.CreateMigrationsTable(t)
 	// Batch 1
@@ -675,7 +648,7 @@ func TestGetRollbackMigrations_MultipleBatches_RollbackOne(t *testing.T) {
 	tdb.MarkMigrationApplied(t, "20010101000003", 2)
 	tdb.MarkMigrationApplied(t, "20010101000004", 2)
 
-	versions, err := getRollbackMigrations(1)
+	versions, err := getRollbackMigrations(manager.DB(), 1)
 	if err != nil {
 		t.Fatalf("getRollbackMigrations() error = %v", err)
 	}
@@ -697,9 +670,14 @@ func TestGetRollbackMigrations_MultipleBatches_RollbackTwo(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	tdb.CreateMigrationsTable(t)
 	// Batch 1
@@ -709,7 +687,7 @@ func TestGetRollbackMigrations_MultipleBatches_RollbackTwo(t *testing.T) {
 	// Batch 3
 	tdb.MarkMigrationApplied(t, "20010101000003", 3)
 
-	versions, err := getRollbackMigrations(2)
+	versions, err := getRollbackMigrations(manager.DB(), 2)
 	if err != nil {
 		t.Fatalf("getRollbackMigrations() error = %v", err)
 	}
@@ -731,16 +709,21 @@ func TestGetRollbackMigrations_StepExceedsBatches(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	tdb.CreateMigrationsTable(t)
 	tdb.MarkMigrationApplied(t, "20010101000001", 1)
 	tdb.MarkMigrationApplied(t, "20010101000002", 2)
 
 	// Ask for 10 steps but only 2 batches exist — should return all
-	versions, err := getRollbackMigrations(10)
+	versions, err := getRollbackMigrations(manager.DB(), 10)
 	if err != nil {
 		t.Fatalf("getRollbackMigrations() error = %v", err)
 	}
@@ -754,16 +737,21 @@ func TestGetRollbackMigrations_ReturnsDescendingOrder(t *testing.T) {
 	tdb := testutil.SetupTestDB(t)
 	defer tdb.Cleanup()
 
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		t.Fatalf("Failed to initialize ORM: %v", err)
 	}
+	if manager == nil {
+		t.Fatal("Expected manager, got nil")
+	}
+	defer manager.Close()
 
 	tdb.CreateMigrationsTable(t)
 	tdb.MarkMigrationApplied(t, "20010101000001", 1)
 	tdb.MarkMigrationApplied(t, "20010101000002", 1)
 	tdb.MarkMigrationApplied(t, "20010101000003", 1)
 
-	versions, err := getRollbackMigrations(1)
+	versions, err := getRollbackMigrations(manager.DB(), 1)
 	if err != nil {
 		t.Fatalf("getRollbackMigrations() error = %v", err)
 	}

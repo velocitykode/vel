@@ -42,7 +42,7 @@ func SetupTestDB(t *testing.T) *TestDB {
 		t.Fatalf("SetupTestDB: failed to ping database: %v", err)
 	}
 
-	// Set environment variables for orm.InitFromEnv()
+	// Set environment variables for ORM manager initialization
 	os.Setenv("DB_CONNECTION", "sqlite")
 	os.Setenv("DB_DATABASE", dbPath)
 

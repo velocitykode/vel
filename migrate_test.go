@@ -5,27 +5,26 @@ import (
 )
 
 func TestRunMigrate_FailsWithoutDatabase(t *testing.T) {
-	// runMigrate requires database connection
-	// Without proper env setup, it should return error
+	// runMigrate without DB_CONNECTION set should return nil (graceful skip)
 	err := runMigrate(nil, nil)
-	if err == nil {
-		t.Error("runMigrate() should error when database not configured")
+	if err != nil {
+		t.Errorf("runMigrate() should return nil when database not configured, got: %v", err)
 	}
 }
 
 func TestRunMigrateFresh_FailsWithoutDatabase(t *testing.T) {
-	// runMigrateFresh requires database connection
+	// runMigrateFresh without DB_CONNECTION set should return nil (graceful skip)
 	err := runMigrateFresh(nil, nil)
-	if err == nil {
-		t.Error("runMigrateFresh() should error when database not configured")
+	if err != nil {
+		t.Errorf("runMigrateFresh() should return nil when database not configured, got: %v", err)
 	}
 }
 
 func TestRunMigrateRollback_FailsWithoutDatabase(t *testing.T) {
-	// runMigrateRollback requires database connection
+	// runMigrateRollback without DB_CONNECTION set should return nil (graceful skip)
 	err := runMigrateRollback(migrateRollbackCmd, nil)
-	if err == nil {
-		t.Error("runMigrateRollback() should error when database not configured")
+	if err != nil {
+		t.Errorf("runMigrateRollback() should return nil when database not configured, got: %v", err)
 	}
 }
 

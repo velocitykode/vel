@@ -1,6 +1,7 @@
 package vel
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
@@ -35,19 +36,39 @@ func init() {
 	migrateRollbackCmd.Flags().IntP("step", "s", 1, "Number of batches to rollback")
 }
 
+// initDB creates an ORM manager from environment variables.
+// Returns (nil, nil) if no DB_CONNECTION is configured.
+func initDB() (*orm.Manager, error) {
+	driver := os.Getenv("DB_CONNECTION")
+	if driver == "" {
+		return nil, nil
+	}
+	return orm.NewManager(orm.ManagerConfig{
+		Driver:   driver,
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		Database: os.Getenv("DB_DATABASE"),
+		Username: os.Getenv("DB_USERNAME"),
+		Password: os.Getenv("DB_PASSWORD"),
+		SSLMode:  os.Getenv("DB_SSLMODE"),
+	})
+}
+
 func runMigrate(cmd *cobra.Command, args []string) error {
 	ui.Header("migrate")
 
 	// Initialize database from environment
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		ui.Error(fmt.Sprintf("Database connection failed: %v", err))
 		return err
 	}
 
-	if orm.DB() == nil {
+	if manager == nil {
 		ui.Warning("No database configured (DB_CONNECTION not set), skipping migrations")
 		return nil
 	}
+	defer manager.Close()
 
 	// Get all registered migrations (via init() imports in user's cmd/velocity/main.go)
 	migrations := migrate.All()
@@ -57,11 +78,10 @@ func runMigrate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create migrator
-	driverName := os.Getenv("DB_CONNECTION")
-	migrator := migrate.NewMigrator(orm.DB(), driverName)
+	migrator := migrate.NewMigrator(manager.DB(), manager.DriverName())
 
 	// Get pending migrations
-	pending, err := getPendingMigrations(migrator, migrations)
+	pending, err := getPendingMigrations(manager.DB(), migrations)
 	if err != nil {
 		ui.Error(fmt.Sprintf("Failed to get pending migrations: %v", err))
 		return err
@@ -92,15 +112,17 @@ func runMigrateFresh(cmd *cobra.Command, args []string) error {
 	ui.Header("migrate:fresh")
 
 	// Initialize database from environment
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		ui.Error(fmt.Sprintf("Database connection failed: %v", err))
 		return err
 	}
 
-	if orm.DB() == nil {
+	if manager == nil {
 		ui.Warning("No database configured (DB_CONNECTION not set), skipping migrations")
 		return nil
 	}
+	defer manager.Close()
 
 	// Get all registered migrations
 	migrations := migrate.All()
@@ -110,8 +132,7 @@ func runMigrateFresh(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create migrator
-	driverName := os.Getenv("DB_CONNECTION")
-	migrator := migrate.NewMigrator(orm.DB(), driverName)
+	migrator := migrate.NewMigrator(manager.DB(), manager.DriverName())
 
 	ui.Info("Dropping all tables")
 
@@ -135,15 +156,17 @@ func runMigrateRollback(cmd *cobra.Command, args []string) error {
 	ui.Header("migrate:rollback")
 
 	// Initialize database from environment
-	if err := orm.InitFromEnv(); err != nil {
+	manager, err := initDB()
+	if err != nil {
 		ui.Error(fmt.Sprintf("Database connection failed: %v", err))
 		return err
 	}
 
-	if orm.DB() == nil {
+	if manager == nil {
 		ui.Warning("No database configured (DB_CONNECTION not set), skipping rollback")
 		return nil
 	}
+	defer manager.Close()
 
 	// Get all registered migrations
 	migrations := migrate.All()
@@ -153,13 +176,12 @@ func runMigrateRollback(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create migrator
-	driverName := os.Getenv("DB_CONNECTION")
-	migrator := migrate.NewMigrator(orm.DB(), driverName)
+	migrator := migrate.NewMigrator(manager.DB(), manager.DriverName())
 
 	steps, _ := cmd.Flags().GetInt("step")
 
 	// Get migrations that will be rolled back (for display)
-	rollbackVersions, err := getRollbackMigrations(steps)
+	rollbackVersions, err := getRollbackMigrations(manager.DB(), steps)
 	if err != nil {
 		ui.Error(fmt.Sprintf("Failed to get rollback migrations: %v", err))
 		return err
@@ -186,9 +208,7 @@ func runMigrateRollback(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getRollbackMigrations(steps int) ([]string, error) {
-	db := orm.DB()
-
+func getRollbackMigrations(db *sql.DB, steps int) ([]string, error) {
 	// Query all migrations with batch info (no parameters, works on all drivers)
 	rows, err := db.Query("SELECT version, batch FROM migrations ORDER BY version DESC")
 	if err != nil {
@@ -230,11 +250,10 @@ func getRollbackMigrations(steps int) ([]string, error) {
 	return versions, nil
 }
 
-func getPendingMigrations(migrator *migrate.Migrator, all []migrate.Migration) ([]migrate.Migration, error) {
+func getPendingMigrations(db *sql.DB, all []migrate.Migration) ([]migrate.Migration, error) {
 	// Get applied migrations from database
 	appliedVersions := make(map[string]bool)
 
-	db := orm.DB()
 	rows, err := db.Query("SELECT version FROM migrations")
 	if err != nil {
 		// Table might not exist yet, all migrations are pending
