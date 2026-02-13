@@ -50,7 +50,7 @@ func initDB() (*orm.Manager, error) {
 		Database: os.Getenv("DB_DATABASE"),
 		Username: os.Getenv("DB_USERNAME"),
 		Password: os.Getenv("DB_PASSWORD"),
-		SSLMode:  os.Getenv("DB_SSLMODE"),
+		SSLMode:  os.Getenv("DB_SSL_MODE"),
 	})
 }
 
