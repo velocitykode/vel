@@ -17,7 +17,7 @@ import (
 var osExecutable = os.Executable
 
 // Version is the CLI version
-var Version = "0.8.19"
+var Version = "0.8.20"
 
 var rootCmd *cobra.Command
 
