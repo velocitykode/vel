@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/velocitykode/velocity"
-	"github.com/velocitykode/velocity/pkg/router"
+	"github.com/velocitykode/velocity/router"
 )
 
 func RegisterAPI(v *velocity.App) {

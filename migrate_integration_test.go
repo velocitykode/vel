@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/velocitykode/vel/testutil"
-	"github.com/velocitykode/velocity/pkg/orm/migrate"
+	"github.com/velocitykode/velocity/orm/migrate"
 )
 
 // Integration Test Strategy:

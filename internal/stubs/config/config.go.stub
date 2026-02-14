@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	"github.com/velocitykode/velocity/pkg/log"
+	"github.com/velocitykode/velocity/log"
 )
 
 // Config holds application configuration

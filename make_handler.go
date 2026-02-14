@@ -95,7 +95,7 @@ func runMakeHandler(cmd *cobra.Command, args []string) error {
 		// Fallback to basic template if stub not found
 		stubContent = []byte(`package {{ .Package }}
 
-import "github.com/velocitykode/velocity/pkg/router"
+import "github.com/velocitykode/velocity/router"
 
 func {{ .HandlerName }}(ctx *router.Context) error {
 	return ctx.String(200, "{{ .HandlerName }}")
