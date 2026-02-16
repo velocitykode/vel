@@ -110,7 +110,7 @@ jobs:
           cd velocity-template
 
           # Update vel version in go.mod
-          sed -i "s|github.com/velocitykode/vel v[0-9.]*|github.com/velocitykode/vel ${VERSION}|" go.mod
+          sed -i "s|github.com/velocitykode/velocity-cli v[0-9.]*|github.com/velocitykode/vel ${VERSION}|" go.mod
 
           if git diff --quiet go.mod; then
             echo "No changes to go.mod"

@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/velocitykode/vel/testutil"
+	"github.com/velocitykode/velocity-cli/testutil"
 	"github.com/velocitykode/velocity/orm/migrate"
 )
 

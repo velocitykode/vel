@@ -1,4 +1,4 @@
-module github.com/velocitykode/vel
+module github.com/velocitykode/velocity-cli
 
 go 1.25.7
 

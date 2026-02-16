@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/velocitykode/vel/internal/ui"
+	"github.com/velocitykode/velocity-cli/internal/ui"
 )
 
 // osExecutable is a variable for testing - allows mocking os.Executable

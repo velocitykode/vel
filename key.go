@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/velocitykode/vel/internal/ui"
+	"github.com/velocitykode/velocity-cli/internal/ui"
 )
 
 var keyGenerateCmd = &cobra.Command{

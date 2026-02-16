@@ -44,7 +44,7 @@ Your project's `cmd/vel/main.go` imports this package:
 package main
 
 import (
-    "github.com/velocitykode/vel"
+    "github.com/velocitykode/velocity-cli"
     _ "myapp/bootstrap"
     _ "myapp/database/migrations"
 )
