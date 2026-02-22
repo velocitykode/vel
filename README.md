@@ -58,7 +58,7 @@ This gives vel access to your project's migrations and configuration.
 
 ## Documentation
 
-Full documentation at **[velocitykode.com/docs](https://velocitykode.com/docs)**
+Full documentation at **[velocity.velocitykode.com/docs](https://velocity.velocitykode.com/docs)**
 
 ## License
 
